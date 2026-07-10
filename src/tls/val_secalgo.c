@@ -4,22 +4,22 @@
  * Copyright (c) 2012, NLnet Labs. All rights reserved.
  *
  * This software is open source.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * Redistributions of source code must retain the above copyright notice,
  * this list of conditions and the following disclaimer.
- * 
+ *
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * Neither the name of the NLNET LABS nor the names of its contributors may
  * be used to endorse or promote products derived from this software without
  * specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -50,12 +50,12 @@
 #include "sldns/keyraw.h"
 #include "sldns/sbuffer.h"
 
-#if !defined(HAVE_SSL) && !defined(HAVE_NSS) && !defined(HAVE_NETTLE)
+#if !defined(HAVE_SSL) && !defined(HAVE_NSS) && !defined(HAVE_NETTLE) && !defined(HAVE_MBEDTLS)
 #error "Need crypto library to do digital signature cryptography"
 #endif
 
 /* OpenSSL implementation */
-#if defined(HAVE_SSL) && !defined(HAVE_NETTLE)
+#if defined(HAVE_SSL) && !defined(HAVE_NETTLE) && !defined(HAVE_MBEDTLS)
 #ifdef HAVE_OPENSSL_ERR_H
 #include <openssl/err.h>
 #endif
@@ -248,7 +248,7 @@ static int
 do_gost94(unsigned char* data, size_t len, unsigned char* dest)
 {
 	const EVP_MD* md = EVP_get_digestbyname("md_gost94");
-	if(!md) 
+	if(!md)
 		return 0;
 	return sldns_digest_evp(data, (unsigned int)len, dest, md);
 }
@@ -298,8 +298,8 @@ secalgo_ds_digest(int algo, unsigned char* buf, size_t len,
 #endif
 			return 1;
 #endif
-		default: 
-			verbose(VERB_QUERY, "unknown DS digest algorithm %d", 
+		default:
+			verbose(VERB_QUERY, "unknown DS digest algorithm %d",
 				algo);
 			break;
 	}
@@ -364,7 +364,7 @@ dnskey_algo_id_is_supported(int id)
 
 #ifdef USE_DSA
 /**
- * Setup DSA key digest in DER encoding ... 
+ * Setup DSA key digest in DER encoding ...
  * @param sig: input is signature output alloced ptr (unless failure).
  * 	caller must free alloced ptr if this routine returns true.
  * @param len: input is initial siglen, output is output len.
@@ -511,7 +511,7 @@ void ecdsa_evp_workaround_init(void)
  * @return false on failure.
  */
 static int
-setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type, 
+setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 	unsigned char* key, size_t keylen)
 {
 	switch(algo) {
@@ -646,7 +646,7 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 			break;
 #endif /* USE_ED448 */
 		default:
-			verbose(VERB_QUERY, "verify: unknown algorithm %d", 
+			verbose(VERB_QUERY, "verify: unknown algorithm %d",
 				algo);
 			return 0;
 	}
@@ -667,7 +667,7 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
  *	unchecked on format errors and alloc failures.
  */
 enum sec_status
-verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock, 
+verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 	unsigned int sigblock_len, unsigned char* key, unsigned int keylen,
 	char** reason)
 {
@@ -684,7 +684,7 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 	if(fake_sha1 && (algo == LDNS_DSA || algo == LDNS_DSA_NSEC3 || algo == LDNS_RSASHA1 || algo == LDNS_RSASHA1_NSEC3))
 		return sec_status_secure;
 #endif
-	
+
 	if(!setup_key_digest(algo, &evp_key, &digest_type, key, keylen)) {
 		verbose(VERB_QUERY, "verify: failed to setup key");
 		*reason = "use of key for crypto failed";
@@ -693,7 +693,7 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 	}
 #ifdef USE_DSA
 	/* if it is a DSA signature in bind format, convert to DER format */
-	if((algo == LDNS_DSA || algo == LDNS_DSA_NSEC3) && 
+	if((algo == LDNS_DSA || algo == LDNS_DSA_NSEC3) &&
 		sigblock_len == 1+2*SHA_DIGEST_LENGTH) {
 		if(!setup_dsa_sig(&sigblock, &sigblock_len)) {
 			verbose(VERB_QUERY, "verify: failed to setup DSA sig");
@@ -705,7 +705,7 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 	}
 #endif
 #if defined(USE_ECDSA) && defined(USE_DSA)
-	else 
+	else
 #endif
 #ifdef USE_ECDSA
 	if(algo == LDNS_ECDSAP256SHA256 || algo == LDNS_ECDSAP384SHA384) {
@@ -748,7 +748,7 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 		else if(docrypto_free) OPENSSL_free(sigblock);
 		return sec_status_unchecked;
 	}
-	if(EVP_DigestUpdate(ctx, (unsigned char*)sldns_buffer_begin(buf), 
+	if(EVP_DigestUpdate(ctx, (unsigned char*)sldns_buffer_begin(buf),
 		(unsigned int)sldns_buffer_limit(buf)) == 0) {
 		verbose(VERB_QUERY, "verify: EVP_DigestUpdate failed");
 #ifdef HAVE_EVP_MD_CTX_NEW
@@ -953,8 +953,8 @@ secalgo_ds_digest(int algo, unsigned char* buf, size_t len,
 				== SECSuccess;
 #endif
 		case LDNS_HASH_GOST:
-		default: 
-			verbose(VERB_QUERY, "unknown DS digest algorithm %d", 
+		default:
+			verbose(VERB_QUERY, "unknown DS digest algorithm %d",
 				algo);
 			break;
 	}
@@ -1162,7 +1162,7 @@ static SECKEYPublicKey* nss_buf2rsa(unsigned char* key, size_t len)
 	/* key length at least one */
 	if(len < (size_t)offset + exp + 1)
 		return NULL;
-	
+
 	exponent.data = key+offset;
 	exponent.len = exp;
 	offset += exp;
@@ -1214,7 +1214,7 @@ nss_setup_key_digest(int algo, SECKEYPublicKey** pubkey, HASH_HashType* htype,
 	static unsigned char p_sha512[] = {0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60,
 	0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05, 0x00, 0x04, 0x40};
 	/* from RFC6234 */
-	/* for future RSASHA384 .. 
+	/* for future RSASHA384 ..
 	static unsigned char p_sha384[] = {0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60,
 	0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05, 0x00, 0x04, 0x30};
 	*/
@@ -1315,7 +1315,7 @@ nss_setup_key_digest(int algo, SECKEYPublicKey** pubkey, HASH_HashType* htype,
 #endif /* USE_ECDSA */
 		case LDNS_ECC_GOST:
 		default:
-			verbose(VERB_QUERY, "verify: unknown algorithm %d", 
+			verbose(VERB_QUERY, "verify: unknown algorithm %d",
 				algo);
 			return 0;
 	}
@@ -1336,7 +1336,7 @@ nss_setup_key_digest(int algo, SECKEYPublicKey** pubkey, HASH_HashType* htype,
  *	unchecked on format errors and alloc failures.
  */
 enum sec_status
-verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock, 
+verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 	unsigned int sigblock_len, unsigned char* key, unsigned int keylen,
 	char** reason)
 {
@@ -2076,4 +2076,522 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 	}
 }
 
-#endif /* HAVE_SSL or HAVE_NSS or HAVE_NETTLE */
+#elif defined(HAVE_MBEDTLS)
+/* mbedTLS implementation, via PSA crypto. RSA and ECDSA only: mbedTLS has
+ * no DSA or GOST support, and no EdDSA implementation despite declaring
+ * PSA_ALG_PURE_EDDSA and the twisted-Edwards curve family in its headers. */
+
+#include <string.h>
+
+#include <mbedtls/asn1.h>
+#include <mbedtls/asn1write.h>
+#include <mbedtls/version.h>
+#include <psa/crypto.h>
+
+#define SHA1_DIGEST_SIZE	20
+#define SHA256_DIGEST_SIZE	32
+#define SHA384_DIGEST_SIZE	48
+#define SHA512_DIGEST_SIZE	64
+
+/** compute a digest, hash algorithm chosen by output size */
+static int
+_digest_mbedtls(size_t digest_size, const uint8_t *buf, size_t len,
+    unsigned char *res)
+{
+	psa_algorithm_t alg;
+	size_t hash_len = 0;
+
+	switch (digest_size) {
+	case SHA1_DIGEST_SIZE:
+		alg = PSA_ALG_SHA_1;
+		break;
+	case SHA256_DIGEST_SIZE:
+		alg = PSA_ALG_SHA_256;
+		break;
+	case SHA384_DIGEST_SIZE:
+		alg = PSA_ALG_SHA_384;
+		break;
+	case SHA512_DIGEST_SIZE:
+		alg = PSA_ALG_SHA_512;
+		break;
+	default:
+		return 0;
+	}
+	return psa_hash_compute(alg, buf, len, res, digest_size, &hash_len)
+	    == PSA_SUCCESS;
+}
+
+/* return size of digest if supported, or 0 otherwise */
+size_t
+nsec3_hash_algo_size_supported(int id)
+{
+	switch (id) {
+	case NSEC3_HASH_SHA1:
+		return SHA1_DIGEST_SIZE;
+	default:
+		return 0;
+	}
+}
+
+/* perform nsec3 hash. return false on failure */
+int
+secalgo_nsec3_hash(int algo, unsigned char *buf, size_t len,
+    unsigned char *res)
+{
+	switch (algo) {
+	case NSEC3_HASH_SHA1:
+		return _digest_mbedtls(SHA1_DIGEST_SIZE, (uint8_t *) buf, len,
+		    res);
+	default:
+		return 0;
+	}
+}
+
+void
+secalgo_hash_sha256(unsigned char *buf, size_t len, unsigned char *res)
+{
+	_digest_mbedtls(SHA256_DIGEST_SIZE, (uint8_t *) buf, len, res);
+}
+
+/** secalgo hash structure */
+struct secalgo_hash {
+	/** if it is 384 or 512 */
+	int active;
+	/** PSA multi-part hash operation */
+	psa_hash_operation_t op;
+};
+
+struct secalgo_hash *
+secalgo_hash_create_sha384(void)
+{
+	struct secalgo_hash *h = calloc(1, sizeof(*h));
+	if (!h)
+		return NULL;
+	h->active = 384;
+	h->op = psa_hash_operation_init();
+	if (psa_hash_setup(&h->op, PSA_ALG_SHA_384) != PSA_SUCCESS) {
+		free(h);
+		return NULL;
+	}
+	return h;
+}
+
+struct secalgo_hash *
+secalgo_hash_create_sha512(void)
+{
+	struct secalgo_hash *h = calloc(1, sizeof(*h));
+	if (!h)
+		return NULL;
+	h->active = 512;
+	h->op = psa_hash_operation_init();
+	if (psa_hash_setup(&h->op, PSA_ALG_SHA_512) != PSA_SUCCESS) {
+		free(h);
+		return NULL;
+	}
+	return h;
+}
+
+int
+secalgo_hash_update(struct secalgo_hash *hash, uint8_t *data, size_t len)
+{
+	if (hash->active != 384 && hash->active != 512)
+		return 0;
+	return psa_hash_update(&hash->op, data, len) == PSA_SUCCESS;
+}
+
+int
+secalgo_hash_final(struct secalgo_hash *hash, uint8_t *result,
+    size_t maxlen, size_t *resultlen)
+{
+	size_t needed = hash->active == 384 ? SHA384_DIGEST_SIZE
+	    : hash->active == 512 ? SHA512_DIGEST_SIZE : 0;
+
+	if (!needed) {
+		*resultlen = 0;
+		return 0;
+	}
+	if (needed > maxlen) {
+		*resultlen = 0;
+		log_err("secalgo_hash_final: hash buffer too small");
+		return 0;
+	}
+	if (psa_hash_finish(&hash->op, result, maxlen,
+		resultlen) != PSA_SUCCESS) {
+		*resultlen = 0;
+		return 0;
+	}
+	return 1;
+}
+
+void
+secalgo_hash_delete(struct secalgo_hash *hash)
+{
+	if (!hash)
+		return;
+	(void) psa_hash_abort(&hash->op);
+	free(hash);
+}
+
+/**
+ * Return size of DS digest according to its hash algorithm.
+ * @param algo: DS digest algo.
+ * @return size in bytes of digest, or 0 if not supported.
+ */
+size_t
+ds_digest_size_supported(int algo)
+{
+	switch (algo) {
+#ifdef USE_SHA1
+	case LDNS_SHA1:
+		return SHA1_DIGEST_SIZE;
+#endif
+#ifdef USE_SHA2
+	case LDNS_SHA256:
+		return SHA256_DIGEST_SIZE;
+#endif
+#ifdef USE_ECDSA
+	case LDNS_SHA384:
+		return SHA384_DIGEST_SIZE;
+#endif
+		/* GOST not supported */
+	case LDNS_HASH_GOST:
+	default:
+		break;
+	}
+	return 0;
+}
+
+int
+secalgo_ds_digest(int algo, unsigned char *buf, size_t len, unsigned char *res)
+{
+	switch (algo) {
+#ifdef USE_SHA1
+	case LDNS_SHA1:
+		return _digest_mbedtls(SHA1_DIGEST_SIZE, buf, len, res);
+#endif
+#if defined(USE_SHA2)
+	case LDNS_SHA256:
+		return _digest_mbedtls(SHA256_DIGEST_SIZE, buf, len, res);
+#endif
+#ifdef USE_ECDSA
+	case LDNS_SHA384:
+		return _digest_mbedtls(SHA384_DIGEST_SIZE, buf, len, res);
+#endif
+	case LDNS_HASH_GOST:
+	default:
+		verbose(VERB_QUERY, "unknown DS digest algorithm %d", algo);
+		break;
+	}
+	return 0;
+}
+
+int
+dnskey_algo_id_is_supported(int id)
+{
+	switch (id) {
+#ifdef USE_SHA1
+	case LDNS_RSASHA1:
+	case LDNS_RSASHA1_NSEC3:
+		return 1;
+#endif
+#ifdef USE_SHA2
+	case LDNS_RSASHA256:
+	case LDNS_RSASHA512:
+		return 1;
+#endif
+#ifdef USE_ECDSA
+	case LDNS_ECDSAP256SHA256:
+	case LDNS_ECDSAP384SHA384:
+		return 1;
+#endif
+	case LDNS_DSA:
+	case LDNS_DSA_NSEC3:
+		/* RFC 6725 deprecates RSAMD5 */
+	case LDNS_RSAMD5:
+	case LDNS_ECC_GOST:
+	case LDNS_ED25519:
+	case LDNS_ED448:
+	default:
+		return 0;
+	}
+}
+
+static int
+_asn1_write_len_and_tag(unsigned char **p, unsigned char *start,
+    size_t len, int tag)
+{
+	int len_bytes, tag_bytes;
+
+	if ((len_bytes = mbedtls_asn1_write_len(p, start, len)) < 0)
+		return len_bytes;
+	if ((tag_bytes = mbedtls_asn1_write_tag(p, start, tag)) < 0)
+		return tag_bytes;
+	return (int) len + len_bytes + tag_bytes;
+}
+
+// Equivalent to `mbedtls_asn1_write_integer` in 4.x, missing from 3.x
+static int
+_asn1_write_unsigned_integer(unsigned char **p, unsigned char *start,
+    const unsigned char *bytes, size_t len)
+{
+	static const unsigned char zero = 0;
+	size_t skip = 0;
+	int pad, content_len, ret;
+
+	while (skip + 1 < len && bytes[skip] == 0)
+		skip++;
+	pad = (bytes[skip] & 0x80) ? 1 : 0;
+
+	if ((ret = mbedtls_asn1_write_raw_buffer(p, start, bytes + skip,
+		len - skip)) < 0)
+		return ret;
+	content_len = ret;
+	if (pad) {
+		if ((ret = mbedtls_asn1_write_raw_buffer(p, start, &zero, 1)) < 0)
+			return ret;
+		content_len += ret;
+	}
+	if ((ret = _asn1_write_len_and_tag(p, start, (size_t) content_len,
+		MBEDTLS_ASN1_INTEGER)) < 0)
+		return ret;
+	return ret;
+}
+
+/** Build a DER RSAPublicKey ::= SEQUENCE { modulus INTEGER, publicExponent
+ * INTEGER } from the raw (exponent, modulus) pair in DNSKEY wire format
+ * (RFC 3110 sec. 2), for psa_import_key(). Length written at the tail of
+ * der_buf is returned; *der_start points at the start of the encoding.
+ */
+static size_t
+_rsa_key_to_der(unsigned char *der_buf, size_t der_buf_len,
+    const unsigned char *exponent, size_t exp_len,
+    const unsigned char *modulus, size_t mod_len, unsigned char **der_start)
+{
+	unsigned char *p = der_buf + der_buf_len;
+	int len = 0, ret;
+
+	/* asn1_write functions work backwards from the end of the buffer */
+	if ((ret =
+		_asn1_write_unsigned_integer(&p, der_buf, exponent,
+		    exp_len)) < 0)
+		return 0;
+	len += ret;
+	if ((ret =
+		_asn1_write_unsigned_integer(&p, der_buf, modulus, mod_len)) < 0)
+		return 0;
+	len += ret;
+	if ((ret = _asn1_write_len_and_tag(&p, der_buf, (size_t) len,
+		MBEDTLS_ASN1_CONSTRUCTED | MBEDTLS_ASN1_SEQUENCE)) < 0)
+		return 0;
+	len += ret;
+
+	*der_start = p;
+	return (size_t) len;
+}
+
+static char *
+_verify_mbedtls_rsa(sldns_buffer *buf, unsigned int digest_size,
+    unsigned char *sigblock, unsigned int sigblock_len, uint8_t *key,
+    unsigned int keylen)
+{
+	uint16_t exp_len = 0;
+	size_t exp_offset = 0, mod_offset = 0;
+	unsigned char der[2048];
+	unsigned char *der_start;
+	size_t der_len;
+	psa_key_attributes_t attrs = PSA_KEY_ATTRIBUTES_INIT;
+	mbedtls_svc_key_id_t key_id;
+	psa_algorithm_t alg;
+	unsigned char digest[SHA512_DIGEST_SIZE];
+	int ok;
+
+	/* RSA pubkey parsing as per RFC 3110 sec. 2 */
+	if (keylen <= 1) {
+		return "null RSA key";
+	}
+	if (key[0] != 0) {
+		/* 1-byte length */
+		exp_len = key[0];
+		exp_offset = 1;
+	} else {
+		/* 1-byte NUL + 2-bytes exponent length */
+		if (keylen < 3) {
+			return "incorrect RSA key length";
+		}
+		/* big-endian uint16, RFC 3110 sec. 2 */
+		exp_len = ((uint16_t) key[1] << 8) | (uint16_t) key[2];
+		if (exp_len == 0)
+			return "null RSA exponent length";
+		exp_offset = 3;
+	}
+	if (keylen < exp_offset + exp_len + 1) {
+		return "RSA key content shorter than expected";
+	}
+	mod_offset = exp_offset + exp_len;
+
+	der_len = _rsa_key_to_der(der, sizeof(der),
+	    key + exp_offset, exp_len,
+	    key + mod_offset, keylen - mod_offset, &der_start);
+	if (der_len == 0)
+		return "RSA key too large to DER-encode";
+
+	switch (digest_size) {
+	case SHA1_DIGEST_SIZE:
+		alg = PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_1);
+		break;
+	case SHA256_DIGEST_SIZE:
+		alg = PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_256);
+		break;
+	case SHA512_DIGEST_SIZE:
+		alg = PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_512);
+		break;
+	default:
+		return "unknown RSA digest algorithm";
+	}
+
+	if (!_digest_mbedtls(digest_size,
+		(const uint8_t *) sldns_buffer_begin(buf),
+		(size_t) sldns_buffer_limit(buf), digest))
+		return "RSA digest computation failed";
+
+	psa_set_key_usage_flags(&attrs, PSA_KEY_USAGE_VERIFY_HASH);
+	psa_set_key_algorithm(&attrs, alg);
+	psa_set_key_type(&attrs, PSA_KEY_TYPE_RSA_PUBLIC_KEY);
+
+	if (psa_import_key(&attrs, der_start, der_len, &key_id) != PSA_SUCCESS)
+		return "invalid RSA public key";
+
+	ok = psa_verify_hash(key_id, alg, digest, digest_size,
+	    sigblock, sigblock_len) == PSA_SUCCESS;
+	psa_destroy_key(key_id);
+
+	return ok ? NULL : "RSA signature verification failed";
+}
+
+#ifdef USE_ECDSA
+static char *
+_verify_mbedtls_ecdsa(sldns_buffer *buf, unsigned int digest_size,
+    unsigned char *sigblock, unsigned int sigblock_len, unsigned char *key,
+    unsigned int keylen)
+{
+	unsigned char rawkey[1 + 2 * SHA384_DIGEST_SIZE];
+	unsigned char digest[SHA512_DIGEST_SIZE];
+	psa_key_attributes_t attrs = PSA_KEY_ATTRIBUTES_INIT;
+	mbedtls_svc_key_id_t key_id;
+	psa_algorithm_t alg;
+	size_t bits;
+	int ok;
+
+	/* Always matched strength, as per RFC 6605 sec. 1 */
+	if (sigblock_len != 2 * digest_size || keylen != 2 * digest_size) {
+		return "wrong ECDSA signature length";
+	}
+
+	switch (digest_size) {
+	case SHA256_DIGEST_SIZE:
+		alg = PSA_ALG_ECDSA(PSA_ALG_SHA_256);
+		bits = 256;
+		break;
+	case SHA384_DIGEST_SIZE:
+		alg = PSA_ALG_ECDSA(PSA_ALG_SHA_384);
+		bits = 384;
+		break;
+	default:
+		return "unknown ECDSA algorithm";
+	}
+
+	if (!_digest_mbedtls(digest_size,
+		(const uint8_t *) sldns_buffer_begin(buf),
+		(size_t) sldns_buffer_limit(buf), digest))
+		return "ECDSA digest computation failed";
+
+	rawkey[0] = 0x04;
+	memcpy(rawkey + 1, key, keylen);
+
+	psa_set_key_usage_flags(&attrs, PSA_KEY_USAGE_VERIFY_HASH);
+	psa_set_key_algorithm(&attrs, alg);
+	psa_set_key_type(&attrs,
+	    PSA_KEY_TYPE_ECC_PUBLIC_KEY(PSA_ECC_FAMILY_SECP_R1));
+	psa_set_key_bits(&attrs, bits);
+
+	if (psa_import_key(&attrs, rawkey, 1 + keylen, &key_id) != PSA_SUCCESS)
+		return "invalid ECDSA public key";
+
+	ok = psa_verify_hash(key_id, alg, digest, digest_size,
+	    sigblock, sigblock_len) == PSA_SUCCESS;
+	psa_destroy_key(key_id);
+
+	return ok ? NULL : "ECDSA signature verification failed";
+}
+#endif /* USE_ECDSA */
+
+/**
+ * Check a canonical sig+rrset and signature against a dnskey
+ * @param buf: buffer with data to verify, the first rrsig part and the
+ *	canonicalized rrset.
+ * @param algo: DNSKEY algorithm.
+ * @param sigblock: signature rdata field from RRSIG
+ * @param sigblock_len: length of sigblock data.
+ * @param key: public key data from DNSKEY RR.
+ * @param keylen: length of keydata.
+ * @param reason: bogus reason in more detail.
+ * @return secure if verification succeeded, bogus on crypto failure,
+ *	unchecked on format errors and alloc failures.
+ */
+enum sec_status
+verify_canonrrset(sldns_buffer *buf, int algo, unsigned char *sigblock,
+    unsigned int sigblock_len, unsigned char *key, unsigned int keylen,
+    char **reason)
+{
+	if (sigblock_len == 0 || keylen == 0) {
+		*reason = "null signature";
+		return sec_status_bogus;
+	}
+
+	*reason = NULL;
+	switch (algo) {
+#ifdef USE_SHA1
+	case LDNS_RSASHA1:
+	case LDNS_RSASHA1_NSEC3:
+		*reason = _verify_mbedtls_rsa(buf, SHA1_DIGEST_SIZE, sigblock,
+		    sigblock_len, key, keylen);
+		break;
+#endif
+#ifdef USE_SHA2
+	case LDNS_RSASHA256:
+		*reason =
+		    _verify_mbedtls_rsa(buf, SHA256_DIGEST_SIZE, sigblock,
+		    sigblock_len, key, keylen);
+		break;
+	case LDNS_RSASHA512:
+		*reason =
+		    _verify_mbedtls_rsa(buf, SHA512_DIGEST_SIZE, sigblock,
+		    sigblock_len, key, keylen);
+		break;
+#endif
+#ifdef USE_ECDSA
+	case LDNS_ECDSAP256SHA256:
+		*reason =
+		    _verify_mbedtls_ecdsa(buf, SHA256_DIGEST_SIZE, sigblock,
+		    sigblock_len, key, keylen);
+		break;
+	case LDNS_ECDSAP384SHA384:
+		*reason =
+		    _verify_mbedtls_ecdsa(buf, SHA384_DIGEST_SIZE, sigblock,
+		    sigblock_len, key, keylen);
+		break;
+#endif
+	case LDNS_DSA:
+	case LDNS_DSA_NSEC3:
+	case LDNS_RSAMD5:
+	case LDNS_ECC_GOST:
+	case LDNS_ED25519:
+	case LDNS_ED448:
+	default:
+		*reason = "unable to verify signature, unknown algorithm";
+		return sec_status_bogus;
+	}
+
+	return *reason != NULL ? sec_status_bogus : sec_status_secure;
+}
+#endif /* HAVE_SSL or HAVE_NSS or HAVE_NETTLE or HAVE_MBEDTLS */

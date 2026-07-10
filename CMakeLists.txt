@@ -166,6 +166,7 @@ option(BUILD_LIBUV "Build libuv support library available." ON)
 
 option(USE_LIBIDN2 "Use libidn2 if available." ON)
 option(USE_GNUTLS "Use GnuTLS for TLS connections." OFF)
+option(USE_MBEDTLS "Use mbedTLS for TLS connections." OFF)
 
 option(FORCE_COMPAT_STRPTIME "Force use of internal strptime when cross-compiling." OFF)
 
@@ -326,66 +327,73 @@ check_type_size(sigset_t SIGSET_T)
 check_type_size(_sigset_t _SIGSET_T)
 
 # SSL library
-find_package(OpenSSL "1.0.2" REQUIRED)
+#
+# USE_MBEDTLS builds get all their TLS and DNSSEC-signature-verification
+# crypto from mbedTLS (src/mbedtls/tls.c, src/tls/val_secalgo.c's
+# HAVE_MBEDTLS branch, src/tls/anchor-internal.c's HAVE_MBEDTLS branch), so
+# OpenSSL is not looked up or linked at all for them.
+if (NOT USE_MBEDTLS)
+  find_package(OpenSSL "1.0.2" REQUIRED)
 
-set(HAVE_SSL 1)
-set(tlsdir "openssl")
+  set(HAVE_SSL 1)
+  set(tlsdir "openssl")
 
-set(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
-check_include_file(openssl/ssl.h HAVE_OPENSSL_SSL_H)
-check_include_file(openssl/evp.h HAVE_OPENSSL_EVP_H)
-check_include_file(openssl/err.h HAVE_OPENSSL_ERR_H)
-check_include_file(openssl/rand.h HAVE_OPENSSL_RAND_H)
-check_include_file(openssl/conf.h HAVE_OPENSSL_CONF_H)
-check_include_file(openssl/engine.h HAVE_OPENSSL_ENGINE_H)
-check_include_file(openssl/bn.h HAVE_OPENSSL_BN_H)
-check_include_file(openssl/dsa.h HAVE_OPENSSL_DSA_H)
-check_include_file(openssl/rsa.h HAVE_OPENSSL_RSA_H)
-check_include_file(openssl/param_build.h HAVE_OPENSSL_PARAM_BUILD_H)
+  set(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
+  check_include_file(openssl/ssl.h HAVE_OPENSSL_SSL_H)
+  check_include_file(openssl/evp.h HAVE_OPENSSL_EVP_H)
+  check_include_file(openssl/err.h HAVE_OPENSSL_ERR_H)
+  check_include_file(openssl/rand.h HAVE_OPENSSL_RAND_H)
+  check_include_file(openssl/conf.h HAVE_OPENSSL_CONF_H)
+  check_include_file(openssl/engine.h HAVE_OPENSSL_ENGINE_H)
+  check_include_file(openssl/bn.h HAVE_OPENSSL_BN_H)
+  check_include_file(openssl/dsa.h HAVE_OPENSSL_DSA_H)
+  check_include_file(openssl/rsa.h HAVE_OPENSSL_RSA_H)
+  check_include_file(openssl/param_build.h HAVE_OPENSSL_PARAM_BUILD_H)
 
-set(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_LIBRARIES} ${getdns_system_libs})
-check_function_exists(DSA_SIG_set0 HAVE_DSA_SIG_SET0)
-check_function_exists(DSA_set0_pqg HAVE_DSA_SET0_PQG)
-check_function_exists(DSA_set0_key HAVE_DSA_SET0_KEY)
+  set(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_LIBRARIES} ${getdns_system_libs})
+  check_function_exists(DSA_SIG_set0 HAVE_DSA_SIG_SET0)
+  check_function_exists(DSA_set0_pqg HAVE_DSA_SET0_PQG)
+  check_function_exists(DSA_set0_key HAVE_DSA_SET0_KEY)
 
-check_function_exists(RSA_set0_key HAVE_RSA_SET0_KEY)
+  check_function_exists(RSA_set0_key HAVE_RSA_SET0_KEY)
 
-check_function_exists(EVP_md5 HAVE_EVP_MD5)
-check_function_exists(EVP_sha1 HAVE_EVP_SHA1)
-check_function_exists(EVP_sha224 HAVE_EVP_SHA224)
-check_function_exists(EVP_sha256 HAVE_EVP_SHA256)
-check_function_exists(EVP_sha384 HAVE_EVP_SHA384)
-check_function_exists(EVP_sha512 HAVE_EVP_SHA512)
+  check_function_exists(EVP_md5 HAVE_EVP_MD5)
+  check_function_exists(EVP_sha1 HAVE_EVP_SHA1)
+  check_function_exists(EVP_sha224 HAVE_EVP_SHA224)
+  check_function_exists(EVP_sha256 HAVE_EVP_SHA256)
+  check_function_exists(EVP_sha384 HAVE_EVP_SHA384)
+  check_function_exists(EVP_sha512 HAVE_EVP_SHA512)
 
-check_function_exists(EVP_dss1 HAVE_EVP_DSS1)
-check_function_exists(EVP_DigestVerify HAVE_EVP_DIGESTVERIFY)
+  check_function_exists(EVP_dss1 HAVE_EVP_DSS1)
+  check_function_exists(EVP_DigestVerify HAVE_EVP_DIGESTVERIFY)
 
-check_function_exists(EVP_MD_CTX_new HAVE_EVP_MD_CTX_NEW)
+  check_function_exists(EVP_MD_CTX_new HAVE_EVP_MD_CTX_NEW)
 
-check_function_exists(HMAC_CTX_new HAVE_HMAC_CTX_NEW)
+  check_function_exists(HMAC_CTX_new HAVE_HMAC_CTX_NEW)
 
-check_function_exists(OpenSSL_version_num HAVE_OPENSSL_VERSION_NUM)
-check_function_exists(OpenSSL_version HAVE_OPENSSL_VERSION)
+  check_function_exists(OpenSSL_version_num HAVE_OPENSSL_VERSION_NUM)
+  check_function_exists(OpenSSL_version HAVE_OPENSSL_VERSION)
 
-check_function_exists(SSL_CTX_dane_enable HAVE_SSL_CTX_DANE_ENABLE)
+  check_function_exists(SSL_CTX_dane_enable HAVE_SSL_CTX_DANE_ENABLE)
 
-check_function_exists(SSL_CTX_set_ciphersuites HAVE_SSL_CTX_SET_CIPHERSUITES)
-check_function_exists(SSL_set_ciphersuites HAVE_SSL_SET_CIPHERSUITES)
+  check_function_exists(SSL_CTX_set_ciphersuites HAVE_SSL_CTX_SET_CIPHERSUITES)
+  check_function_exists(SSL_set_ciphersuites HAVE_SSL_SET_CIPHERSUITES)
 
-check_function_exists(OPENSSL_init_crypto HAVE_OPENSSL_INIT_CRYPTO)
+  check_function_exists(OPENSSL_init_crypto HAVE_OPENSSL_INIT_CRYPTO)
 
-check_function_exists(OSSL_PARAM_BLD_new HAVE_OSSL_PARAM_BLD_NEW)
+  check_function_exists(OSSL_PARAM_BLD_new HAVE_OSSL_PARAM_BLD_NEW)
 
-check_symbol_exists(SSL_dane_enable "openssl/ssl.h" HAVE_SSL_DANE_ENABLE)
-check_symbol_exists(SSL_CTX_set1_curves_list "openssl/ssl.h" HAVE_DECL_SSL_CTX_SET1_CURVES_LIST)
-check_symbol_exists(SSL_set1_curves_list "openssl/ssl.h" HAVE_DECL_SSL_SET1_CURVES_LIST)
-check_symbol_exists(SSL_set_min_proto_version "openssl/ssl.h" HAVE_DECL_SSL_SET_MIN_PROTO_VERSION)
-check_symbol_exists(TLS_client_method "openssl/ssl.h" HAVE_TLS_CLIENT_METHOD)
-check_symbol_exists(X509_get_notAfter "openssl/x509.h" HAVE_X509_GET_NOTAFTER)
-check_symbol_exists(X509_get0_notAfter "openssl/x509.h" HAVE_X509_GET0_NOTAFTER)
+  check_symbol_exists(SSL_dane_enable "openssl/ssl.h" HAVE_SSL_DANE_ENABLE)
+  check_symbol_exists(SSL_CTX_set1_curves_list "openssl/ssl.h" HAVE_DECL_SSL_CTX_SET1_CURVES_LIST)
+  check_symbol_exists(SSL_set1_curves_list "openssl/ssl.h" HAVE_DECL_SSL_SET1_CURVES_LIST)
+  check_symbol_exists(SSL_set_min_proto_version "openssl/ssl.h" HAVE_DECL_SSL_SET_MIN_PROTO_VERSION)
+  check_symbol_exists(TLS_client_method "openssl/ssl.h" HAVE_TLS_CLIENT_METHOD)
+  check_symbol_exists(X509_get_notAfter "openssl/x509.h" HAVE_X509_GET_NOTAFTER)
+  check_symbol_exists(X509_get0_notAfter "openssl/x509.h" HAVE_X509_GET0_NOTAFTER)
 
-check_symbol_exists(NID_ED25519 "openssl/obj_mac.h" HAVE_SSL_ED25519)
-check_symbol_exists(NID_ED448 "openssl/obj_mac.h" HAVE_SSL_ED448)
+  check_symbol_exists(NID_ED25519 "openssl/obj_mac.h" HAVE_SSL_ED25519)
+  check_symbol_exists(NID_ED448 "openssl/obj_mac.h" HAVE_SSL_ED448)
+endif ()
 
 # Threading library
 set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -412,6 +420,10 @@ endif()
 # GnuTLS and Nettle. If using GnuTLS, we need the Nettle dev stuff to
 # handle digital signature algorithms. GnuTLS uses Nettle internally.
 if (USE_GNUTLS)
+  if (USE_MBEDTLS)
+    message(FATAL_ERROR "USE_GNUTLS and USE_MBEDTLS are mutually exclusive.")
+  endif()
+
   find_package(GnuTLS "3.5.0" REQUIRED)
   find_package(Nettle "3.2" REQUIRED)
 
@@ -426,6 +438,40 @@ set(CMAKE_REQUIRED_LIBRARIES ${NETTLE_LIBRARIES})
   # API change in Nettle 3.4.
   check_symbol_exists(nettle_get_secp_256r1 "nettle/ecc-curve.h" HAVE_NETTLE_GET_SECP_256R1)
   check_symbol_exists(nettle_get_secp_384r1 "nettle/ecc-curve.h" HAVE_NETTLE_GET_SECP_384R1)
+endif()
+
+# mbedTLS. src/tls/val_secalgo.c has its own mbedTLS-native branch
+# (HAVE_MBEDTLS) using the PSA crypto API, so DNSSEC doesn't need
+# OpenSSL or Nettle here.
+if (USE_MBEDTLS)
+  # Crypto lib target renamed mbedcrypto -> tfpsacrypto in 4.x.
+  find_package(MbedTLS REQUIRED)
+
+  # MbedTLSConfigVersion.cmake uses write_basic_package_version_file()'s
+  # default SameMajorVersion mode, which doesn't support find_package()
+  # version ranges (any range request is rejected outright) - so the
+  # bound is checked here instead. Sanity guard, not a considered
+  # compatibility promise: only verified against 3.6.6 and 4.2.0.
+  if (MbedTLS_VERSION VERSION_LESS "3.0.0" OR
+      NOT MbedTLS_VERSION VERSION_LESS "5.0.0")
+    message(FATAL_ERROR
+      "USE_MBEDTLS requires mbedTLS >= 3.0.0 and < 5.0.0, found ${MbedTLS_VERSION}")
+  endif ()
+
+  if (MbedTLS_VERSION VERSION_LESS "4.0.0")
+    set(MBEDTLS_CRYPTO_TARGET MbedTLS::mbedcrypto)
+  else()
+    set(MBEDTLS_CRYPTO_TARGET MbedTLS::tfpsacrypto)
+  endif()
+
+  set(tlsdir "mbedtls")
+  set(HAVE_MBEDTLS 1)
+
+  # mbedTLS has no DSA, GOST, or EdDSA (Ed25519/Ed448) support at all.
+  unset(USE_DSA)
+  unset(USE_GOST)
+  unset(USE_ED25519)
+  unset(USE_ED448)
 endif()
 
 # Sort out what signature algorithms can be used.
@@ -677,13 +723,18 @@ target_include_directories(getdns_objects
   src/yxml
 
   ${CMAKE_CURRENT_BINARY_DIR}
-
-  # Note - CMake 3.5 doesn't like target_link_libraries on objects,
-  # which would be preferred way to add an include dependency.
-  ${OPENSSL_INCLUDE_DIR}
   )
 target_compile_definitions(getdns_objects PRIVATE JSMN_GETDNS YXML_GETDNS)
-if (NOT HAVE_SSL_DANE_ENABLE)
+if (NOT USE_MBEDTLS)
+  # Note - CMake 3.5 doesn't like target_link_libraries on objects,
+  # which would be preferred way to add an include dependency.
+  target_include_directories(getdns_objects PRIVATE ${OPENSSL_INCLUDE_DIR})
+endif ()
+# src/ssl_dane/danessl.c is a hard-OpenSSL DANE verification helper with no
+# mbedTLS equivalent; it is only ever needed as a fallback when the linked
+# OpenSSL itself lacks native DANE support, so it is meaningless (and
+# unbuildable) for USE_MBEDTLS.
+if ((NOT USE_MBEDTLS) AND (NOT HAVE_SSL_DANE_ENABLE))
   target_sources(getdns_objects PRIVATE src/ssl_dane/danessl.c)
   target_include_directories(getdns_objects PRIVATE src/ssl_dane)
   set(USE_DANESSL 1)
@@ -696,6 +747,10 @@ if (Libunbound_FOUND)
 endif ()
 if (GnuTLS_FOUND)
   target_include_directories(getdns_objects PRIVATE ${GNUTLS_INCLUDE_DIR})
+endif ()
+if (MbedTLS_FOUND)
+  target_link_libraries(getdns_objects PUBLIC
+    MbedTLS::mbedtls MbedTLS::mbedx509 ${MBEDTLS_CRYPTO_TARGET})
 endif ()
 
 # Don't compile separate objects for shared and static libraries.
@@ -713,11 +768,12 @@ if (ENABLE_STATIC)
     )
   target_link_libraries(getdns
     PUBLIC
-    OpenSSL::SSL
-    OpenSSL::Crypto
     Threads::Threads
     ${getdns_system_libs}
     )
+  if (NOT USE_MBEDTLS)
+    target_link_libraries(getdns PUBLIC OpenSSL::SSL OpenSSL::Crypto)
+  endif ()
   if (Libunbound_FOUND)
     target_link_libraries(getdns PUBLIC Libunbound::Libunbound)
   endif ()
@@ -729,6 +785,10 @@ if (ENABLE_STATIC)
   endif ()
   if (Nettle_FOUND)
     target_link_libraries(getdns PUBLIC Nettle::Nettle Nettle::Hogweed)
+  endif ()
+  if (MbedTLS_FOUND)
+    target_link_libraries(getdns PUBLIC
+      MbedTLS::mbedtls MbedTLS::mbedx509 ${MBEDTLS_CRYPTO_TARGET})
   endif ()
   set_target_properties(getdns PROPERTIES OUTPUT_NAME getdns${static_lib_suffix})
 endif ()
@@ -742,11 +802,12 @@ if (ENABLE_SHARED)
     )
   target_link_libraries(getdns_shared
     PUBLIC
-    OpenSSL::SSL
-    OpenSSL::Crypto
     Threads::Threads
     ${getdns_system_libs}
     )
+  if (NOT USE_MBEDTLS)
+    target_link_libraries(getdns_shared PUBLIC OpenSSL::SSL OpenSSL::Crypto)
+  endif ()
   if (Libunbound_FOUND)
     target_link_libraries(getdns_shared PUBLIC Libunbound::Libunbound)
   endif ()
@@ -758,6 +819,10 @@ if (ENABLE_SHARED)
   endif ()
   if (Nettle_FOUND)
     target_link_libraries(getdns_shared PUBLIC Nettle::Nettle Nettle::Hogweed)
+  endif ()
+  if (MbedTLS_FOUND)
+    target_link_libraries(getdns_shared PUBLIC
+      MbedTLS::mbedtls MbedTLS::mbedx509 ${MBEDTLS_CRYPTO_TARGET})
   endif ()
   set_target_properties(getdns_shared PROPERTIES OUTPUT_NAME getdns)
   target_shared_library_version(getdns_shared ${GETDNS_VERSION_CURRENT} ${GETDNS_VERSION_REVISION} ${GETDNS_VERSION_AGE})
@@ -935,6 +1000,12 @@ if (BUILD_GETDNS_QUERY)
   set_property(TARGET getdns_query PROPERTY C_STANDARD 11)
 endif ()
 
+if (BUILD_GETDNS_SERVER_MON AND USE_MBEDTLS)
+  # src/tools/getdns_server_mon.c calls OpenSSL APIs directly (not through
+  # the tls.h backend abstraction), so it has no mbedTLS port.
+  message(WARNING "getdns_server_mon uses OpenSSL directly and has no mbedTLS port; disabled for USE_MBEDTLS.")
+  set(BUILD_GETDNS_SERVER_MON OFF CACHE BOOL "Compile and install the getdns_server_mon tool." FORCE)
+endif ()
 if (BUILD_GETDNS_SERVER_MON)
   add_executable(getdns_server_mon src/tools/getdns_server_mon.c)
   target_link_libraries(getdns_server_mon

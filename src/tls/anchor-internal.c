@@ -33,10 +33,25 @@
 #include "debug.h"
 #include "anchor.h"
 #include <fcntl.h>
+#ifdef HAVE_MBEDTLS
+/* mbedTLS's PKCS7 module (RFC 2315 SignedData only, DER only, at most one
+ * embedded certificate) has no OpenSSL-style "verify signers against a
+ * trust store" helper - only mbedtls_pkcs7_signed_data_verify() against a
+ * single caller-supplied certificate. So signer selection (matching
+ * subject emailAddress and key usage) and chain validation to the builtin
+ * trust anchor CA are done by hand below, mirroring what
+ * _getdns_get_valid_signers()/PKCS7_verify() do for OpenSSL. */
+#define MBEDTLS_ALLOW_PRIVATE_ACCESS
+#include <mbedtls/pkcs7.h>
+#include <mbedtls/x509_crt.h>
+#include <mbedtls/oid.h>
+#include <psa/crypto.h>
+#else
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
+#endif
 #include <time.h>
 #include "types-internal.h"
 #include "context.h"
@@ -52,6 +67,88 @@
 #include "util-internal.h"
 #include "platform.h"
 
+#ifdef HAVE_MBEDTLS
+/* Verify the p7s PKCS7 signature over xml, using the embedded signer
+ * certificate after checking it against p7signer/key-usage and that it
+ * chains to ta_cert (the builtin trust anchor CA). */
+static int
+_getdns_mbedtls_verify_p7sig(const uint8_t *xml, size_t xml_len,
+    const uint8_t *p7s, size_t p7s_len,
+    mbedtls_x509_crt *ta_cert, const char *p7signer)
+{
+	mbedtls_pkcs7 pkcs7;
+	mbedtls_x509_crt *signer_crt;
+	int matched = 0;
+
+	(void) psa_crypto_init();
+	mbedtls_pkcs7_init(&pkcs7);
+
+	if (mbedtls_pkcs7_parse_der(&pkcs7, p7s, p7s_len)
+	    != MBEDTLS_PKCS7_SIGNED_DATA) {
+		DEBUG_ANCHOR("ERROR %s(): could not parse p7s signature file\n"
+		            , __FUNC__);
+		goto done;
+	}
+	if (pkcs7.signed_data.no_of_certs < 1) {
+		DEBUG_ANCHOR("ERROR %s(): p7s has no embedded signer "
+		             "certificate\n", __FUNC__);
+		goto done;
+	}
+	for ( signer_crt = &pkcs7.signed_data.certs
+	    ; signer_crt && !matched
+	    ; signer_crt = signer_crt->next) {
+		uint32_t flags = 0;
+
+		if (p7signer && *p7signer) {
+			const mbedtls_x509_name *n;
+			char email[256];
+			size_t email_len;
+			int found = 0;
+
+			for (n = &signer_crt->subject; n; n = n->next) {
+				if (MBEDTLS_OID_CMP(
+				    MBEDTLS_OID_PKCS9_EMAIL, &n->oid))
+					continue;
+				email_len = n->val.len < sizeof(email) - 1
+				          ? n->val.len : sizeof(email) - 1;
+				memcpy(email, n->val.p, email_len);
+				email[email_len] = 0;
+				found = strcmp(email, p7signer) == 0;
+				break;
+			}
+			if (!found) {
+				DEBUG_ANCHOR("%s(): removed cert with wrong "
+				             "name\n", __FUNC__);
+				continue;
+			}
+		} else
+			DEBUG_ANCHOR("%s(): did not check commonName of "
+			             "signer\n", __FUNC__);
+
+		if (mbedtls_x509_crt_check_key_usage(signer_crt,
+		    MBEDTLS_X509_KU_DIGITAL_SIGNATURE) != 0) {
+			DEBUG_ANCHOR("%s(): removed cert with no key usage "
+			             "Digital Signature allowed\n", __FUNC__);
+			continue;
+		}
+		if (mbedtls_x509_crt_verify(signer_crt, ta_cert, NULL,
+		    NULL, &flags, NULL, NULL) != 0) {
+			DEBUG_ANCHOR("%s(): signer cert does not chain to "
+			             "trust anchor CA\n", __FUNC__);
+			continue;
+		}
+		if (mbedtls_pkcs7_signed_data_verify(
+		    &pkcs7, signer_crt, xml, xml_len) == 0)
+			matched = 1;
+		else
+			DEBUG_ANCHOR("ERROR %s(): the PKCS7 signature did "
+			             "not verify\n", __FUNC__);
+	}
+done:
+	mbedtls_pkcs7_free(&pkcs7);
+	return matched;
+}
+#else
 /* get key usage out of its extension, returns 0 if no key_usage extension */
 static unsigned long
 _getdns_get_usage_of_ex(X509* cert)
@@ -186,7 +283,175 @@ _getdns_verify_p7sig(BIO* data, BIO* p7s, X509_STORE *store, const char* p7signe
 	PKCS7_free(p7);
 	return secure;
 }
+#endif /* HAVE_MBEDTLS */
 
+#ifdef HAVE_MBEDTLS
+uint8_t *_getdns_tas_validate(struct mem_funcs *mf,
+    const getdns_bindata *xml_bd, const getdns_bindata *p7s_bd,
+    const getdns_bindata *crt_bd, const char *p7signer,
+    uint64_t *now_ms, uint8_t *tas, size_t *tas_len)
+{
+	mbedtls_x509_crt ta_cert;
+	uint8_t *crt_pem = NULL;
+	uint8_t *success = NULL;
+
+	mbedtls_x509_crt_init(&ta_cert);
+
+	/* mbedtls_x509_crt_parse() requires PEM input to be NUL terminated;
+	 * crt_bd is a plain sized buffer, not guaranteed to be, so make a
+	 * NUL-terminated copy. */
+	if (!(crt_pem = GETDNS_XMALLOC(*mf, uint8_t, crt_bd->size + 1)))
+		DEBUG_ANCHOR("ERROR %s(): Failed allocating crt buffer\n"
+		            , __FUNC__);
+	else {
+		memcpy(crt_pem, crt_bd->data, crt_bd->size);
+		crt_pem[crt_bd->size] = 0;
+
+		if (mbedtls_x509_crt_parse(
+		    &ta_cert, crt_pem, crt_bd->size + 1) != 0)
+			DEBUG_ANCHOR("ERROR %s(): Parsing builtin certificate\n"
+			            , __FUNC__);
+
+		else if (_getdns_mbedtls_verify_p7sig(xml_bd->data,
+		    xml_bd->size, p7s_bd->data, p7s_bd->size,
+		    &ta_cert, p7signer)) {
+			gldns_buffer gbuf;
+
+			gldns_buffer_init_vfixed_frm_data(
+			    &gbuf, tas, *tas_len);
+
+			if (!_getdns_parse_xml_trust_anchors_buf(&gbuf, now_ms,
+			    (char *)xml_bd->data, xml_bd->size))
+				DEBUG_ANCHOR("Failed to parse trust anchor XML data");
+
+			else if (gldns_buffer_position(&gbuf) > *tas_len) {
+				*tas_len = gldns_buffer_position(&gbuf);
+				if ((success = GETDNS_XMALLOC(*mf, uint8_t, *tas_len))) {
+					gldns_buffer_init_frm_data(&gbuf, success, *tas_len);
+					if (!_getdns_parse_xml_trust_anchors_buf(&gbuf,
+					    now_ms, (char *)xml_bd->data, xml_bd->size)) {
+
+						DEBUG_ANCHOR("Failed to re-parse trust"
+						             " anchor XML data\n");
+						GETDNS_FREE(*mf, success);
+						success = NULL;
+					}
+				} else
+					DEBUG_ANCHOR("Could not allocate space for "
+					             "trust anchors\n");
+			} else {
+				success = tas;
+				*tas_len = gldns_buffer_position(&gbuf);
+			}
+		} else
+			DEBUG_ANCHOR("Verifying trust-anchors failed!\n");
+
+		GETDNS_FREE(*mf, crt_pem);
+	}
+	mbedtls_x509_crt_free(&ta_cert);
+	return success;
+}
+
+void _getdns_context_equip_with_anchor(
+    getdns_context *context, uint64_t *now_ms)
+{
+	uint8_t xml_spc[4096], *xml_data = NULL;
+	uint8_t p7s_spc[4096], *p7s_data = NULL;
+	size_t xml_len, p7s_len;
+	const char *verify_email = NULL;
+	const char *verify_CA = NULL;
+	getdns_return_t r;
+	mbedtls_x509_crt ta_cert;
+	int have_ta_cert = 0;
+
+	mbedtls_x509_crt_init(&ta_cert);
+
+	if ((r = getdns_context_get_trust_anchors_verify_CA(
+	    context, &verify_CA)))
+		DEBUG_ANCHOR("ERROR %s(): Getting trust anchor verify"
+			     " CA: \"%s\"\n", __FUNC__
+			    , getdns_get_errorstr_by_id(r));
+
+	else if (!verify_CA || !*verify_CA)
+		DEBUG_ANCHOR("NOTICE: Trust anchor verification explicitely "
+		             "disabled by empty verify CA\n");
+
+	else if ((r = getdns_context_get_trust_anchors_verify_email(
+	    context, &verify_email)))
+		DEBUG_ANCHOR("ERROR %s(): Getting trust anchor verify email "
+		             "address: \"%s\"\n", __FUNC__
+		            , getdns_get_errorstr_by_id(r));
+
+	else if (!verify_email || !*verify_email)
+		DEBUG_ANCHOR("NOTICE: Trust anchor verification explicitely "
+		             "disabled by empty verify email\n");
+
+	else if (!(xml_data = _getdns_context_get_priv_file(context,
+	    "root-anchors.xml", xml_spc, sizeof(xml_spc), &xml_len)))
+		DEBUG_ANCHOR("DEBUG %s(): root-anchors.xml not present\n"
+		            , __FUNC__);
+
+	else if (!(p7s_data = _getdns_context_get_priv_file(context,
+	    "root-anchors.p7s", p7s_spc, sizeof(p7s_spc), &p7s_len)))
+		DEBUG_ANCHOR("DEBUG %s(): root-anchors.p7s not present\n"
+		            , __FUNC__);
+
+	else if (mbedtls_x509_crt_parse(&ta_cert,
+	    (const unsigned char *)verify_CA, strlen(verify_CA) + 1) != 0)
+		DEBUG_ANCHOR("ERROR %s(): Parsing builtin certificate\n"
+		            , __FUNC__);
+
+	else if ((have_ta_cert = 1) &&
+	    _getdns_mbedtls_verify_p7sig(xml_data, xml_len,
+	    p7s_data, p7s_len, &ta_cert, verify_email)) {
+		uint8_t ta_spc[sizeof(context->trust_anchors_spc)];
+		size_t ta_len;
+		uint8_t *ta = NULL;
+		gldns_buffer gbuf;
+
+		gldns_buffer_init_vfixed_frm_data(
+		    &gbuf, ta_spc, sizeof(ta_spc));
+
+		if (!_getdns_parse_xml_trust_anchors_buf(&gbuf, now_ms,
+		    (char *)xml_data, xml_len))
+			DEBUG_ANCHOR("Failed to parse trust anchor XML data");
+		else if ((ta_len = gldns_buffer_position(&gbuf)) > sizeof(ta_spc)) {
+			if ((ta = GETDNS_XMALLOC(context->mf, uint8_t, ta_len))) {
+				gldns_buffer_init_frm_data(&gbuf, ta,
+				    gldns_buffer_position(&gbuf));
+				if (!_getdns_parse_xml_trust_anchors_buf(
+				    &gbuf, now_ms, (char *)xml_data, xml_len)) {
+					DEBUG_ANCHOR("Failed to re-parse trust"
+					             " anchor XML data");
+					GETDNS_FREE(context->mf, ta);
+				} else {
+					context->trust_anchors = ta;
+					context->trust_anchors_len = ta_len;
+					context->trust_anchors_source = GETDNS_TASRC_XML;
+					_getdns_ta_notify_dnsreqs(context);
+				}
+			} else
+				DEBUG_ANCHOR("Could not allocate space for XML file");
+		} else {
+			(void)memcpy(context->trust_anchors_spc, ta_spc, ta_len);
+			context->trust_anchors = context->trust_anchors_spc;
+			context->trust_anchors_len = ta_len;
+			context->trust_anchors_source = GETDNS_TASRC_XML;
+			_getdns_ta_notify_dnsreqs(context);
+		}
+		DEBUG_ANCHOR("ta: %p, ta_len: %d\n",
+		    (void *)context->trust_anchors, (int)context->trust_anchors_len);
+
+	} else if (have_ta_cert) {
+		DEBUG_ANCHOR("Verifying trust-anchors failed!\n");
+	}
+	mbedtls_x509_crt_free(&ta_cert);
+	if (xml_data && xml_data != xml_spc)
+		GETDNS_FREE(context->mf, xml_data);
+	if (p7s_data && p7s_data != p7s_spc)
+		GETDNS_FREE(context->mf, p7s_data);
+}
+#else
 uint8_t *_getdns_tas_validate(struct mem_funcs *mf,
     const getdns_bindata *xml_bd, const getdns_bindata *p7s_bd,
     const getdns_bindata *crt_bd, const char *p7signer,
@@ -380,3 +645,4 @@ void _getdns_context_equip_with_anchor(
 	if (p7s_data && p7s_data != p7s_spc)
 		GETDNS_FREE(context->mf, p7s_data);
 }
+#endif /* HAVE_MBEDTLS */

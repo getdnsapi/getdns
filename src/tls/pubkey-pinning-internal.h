@@ -34,8 +34,6 @@
 #ifndef PUBKEY_PINNING_INTERNAL_H_
 #define PUBKEY_PINNING_INTERNAL_H_
 
-#include <openssl/x509.h>
-
 getdns_return_t _getdns_decode_base64(const char* str, uint8_t* res, size_t res_size);
 
 #endif
