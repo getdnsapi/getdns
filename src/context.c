@@ -1668,12 +1668,13 @@ getdns_context_destroy(struct getdns_context *context)
 	 */
 	_getdns_upstreams_dereference(context->upstreams);
 
-	context->sync_eventloop.loop.vmt->cleanup(&context->sync_eventloop.loop);
-	context->extension->vmt->cleanup(context->extension);
 #ifdef HAVE_LIBUNBOUND
+	/* Unbound may still need the event loop to remove pending events. */
 	if (context->unbound_ctx)
 		ub_ctx_delete(context->unbound_ctx);
 #endif
+	context->sync_eventloop.loop.vmt->cleanup(&context->sync_eventloop.loop);
+	context->extension->vmt->cleanup(context->extension);
 
 #ifdef HAVE_MDNS_SUPPORT
 	/*
