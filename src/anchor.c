@@ -621,7 +621,11 @@ static void tas_next(getdns_context *context, tas_connection *a)
 	if (a->rr) {
 		if (!(a->rr = _getdns_rrtype_iter_next(a->rr)))
 			tas_fail(context, a);
-		else	tas_rinse(context, a);
+		else {
+			tas_rinse(context, a);
+			/* start over with the next address */
+			a->state = TAS_LOOKUP_ADDRESSES;
+		}
 	}
 	if (other->rr)
 		tas_connect(context, other);
