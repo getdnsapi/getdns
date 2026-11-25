@@ -5031,21 +5031,35 @@ int _getdns_context_write_priv_file(getdns_context *context,
 		           , "Error writing to temporary file \"%s\": %s\n"
 			   , tmpfn, _getdns_fileerrnostr());
 
-	else if (fclose(f))
-		_getdns_log(&context->log
-		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
-		           , "Error closing temporary file \"%s\": %s (%p)\n"
-			    , tmpfn, _getdns_fileerrnostr(), f);
-
-	else if (rename(tmpfn, path) < 0)
-		_getdns_log(&context->log
-		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
-		           , "Error renaming temporary file \"%s\" to \"%s\""
-			     ": %s\n", tmpfn, path, _getdns_fileerrnostr());
 	else {
-		context->can_write_appdata = PROP_ABLE;
-		return 1;
+		/* fclose() releases the stream and its file descriptor,
+		 * also when it fails.
+		 */
+		int r = fclose(f);
+
+		f = NULL;
+		fd = -1;
+		if (r)
+			_getdns_log(&context->log
+			           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+			           , "Error closing temporary file \"%s\": %s\n"
+				    , tmpfn, _getdns_fileerrnostr());
+
+		else if (rename(tmpfn, path) < 0)
+			_getdns_log(&context->log
+			           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+			           , "Error renaming temporary file \"%s\" "
+				     "to \"%s\": %s\n"
+				    , tmpfn, path, _getdns_fileerrnostr());
+		else {
+			context->can_write_appdata = PROP_ABLE;
+			return 1;
+		}
+		(void) unlink(tmpfn);
 	}
+	/* f or fd is set only when the temporary file was created */
+	if (f || fd >= 0)
+		(void) unlink(tmpfn);
 	if (f)
 		(void) fclose(f);
 
