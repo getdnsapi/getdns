@@ -3353,6 +3353,22 @@ _getdns_context_request_timed_out(getdns_dns_req *dnsreq)
 		     dnsreq->user_pointer, dnsreq->trans_id);
 		dnsreq->context->processing = 0;
 	}
+	/* The trust anchor fetch handles (and frees) its own timed out
+	 * address lookups.
+	 */
+	if (_getdns_ta_lookup_timed_out(dnsreq))
+		return;
+
+	/* The other internal requests are queries of a validation chain,
+	 * which still refers to them. The chain is bounded by the timeout of
+	 * the request being validated, which cancels them, so they are not
+	 * freed here.
+	 */
+	if (dnsreq->internal_cb) {
+		dnsreq->loop->vmt->clear(dnsreq->loop, &dnsreq->timeout);
+		dnsreq->timeout.timeout_cb = NULL;
+		return;
+	}
 	_getdns_context_cancel_request(dnsreq);
 }
 
