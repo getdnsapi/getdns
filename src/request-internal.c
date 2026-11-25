@@ -667,6 +667,17 @@ _getdns_dns_req_free(getdns_dns_req * req)
 		req->loop->vmt->clear(req->loop, &req->timeout);
 		req->timeout.timeout_cb = NULL;
 	}
+	/* remove from the requests waiting for the trust anchors */
+	if (req->waiting_for_ta) {
+		getdns_dns_req **d;
+
+		for (d = &req->context->ta_notify; *d; d = &(*d)->ta_notify) {
+			if (*d == req) {
+				*d = req->ta_notify;
+				break;
+			}
+		}
+	}
 	if (req->freed)
 		*req->freed = 1;
 	GETDNS_FREE(req->my_mf, req);
