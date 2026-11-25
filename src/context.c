@@ -3353,6 +3353,11 @@ _getdns_context_request_timed_out(getdns_dns_req *dnsreq)
 		     dnsreq->user_pointer, dnsreq->trans_id);
 		dnsreq->context->processing = 0;
 	}
+	/* The trust anchor fetch handles (and frees) its own timed out
+	 * address lookups.
+	 */
+	if (_getdns_ta_lookup_timed_out(dnsreq))
+		return;
 	_getdns_context_cancel_request(dnsreq);
 }
 
