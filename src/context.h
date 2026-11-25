@@ -316,6 +316,7 @@ typedef struct tas_connection {
 	getdns_tcp_state       tcp;
 	char                  *http;
 	getdns_bindata         xml;
+	int                    read_until_close;
 } tas_connection;
 
 struct getdns_context {
@@ -347,7 +348,7 @@ struct getdns_context {
 
 	tas_connection        a;
 	tas_connection        aaaa;
-	uint8_t               tas_hdr_spc[512];
+	uint8_t               tas_hdr_spc[4096];
 
 	char                 *trust_anchors_url;
 	char                 *trust_anchors_verify_CA;

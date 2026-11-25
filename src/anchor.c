@@ -518,18 +518,19 @@ uint16_t _getdns_parse_xml_trust_anchors_buf(
 	return ta_count;
 }
 
-static const char tas_write_p7s_buf[] =
-"GET %s HTTP/1.1\r\n"
+/* HTTP/1.0, because HTTP/1.1 servers may send a document with the chunked
+ * transfer coding, which is not supported. The server closes the connection
+ * after the document, so every document is fetched over its own connection.
+ */
+static const char tas_write_get_buf[] =
+"GET %s HTTP/1.0\r\n"
 "Host: %s\r\n"
 "\r\n";
 
-static const char tas_write_xml_p7s_buf[] =
-"GET %s HTTP/1.1\r\n"
-"Host: %s\r\n"
-"\r\n"
-"GET %s HTTP/1.1\r\n"
-"Host: %s\r\n"
-"\r\n";
+/* Maximum size of a fetched document. A document without Content-Length is
+ * read into a buffer of this size, a larger one is refused.
+ */
+#define TAS_MAX_DOC_SIZE 65536
 
 
 static inline const char * rt_str(uint16_t rt)
@@ -648,29 +649,6 @@ static void tas_timeout_cb(void *userarg)
 }
 
 
-static void tas_reconnect_cb(void *userarg)
-{
-	getdns_dns_req *dnsreq = (getdns_dns_req *)userarg;
-	getdns_context *context = (getdns_context *)dnsreq->user_pointer;
-	tas_connection *a;
-
-	if (dnsreq->netreqs[0]->request_type == GETDNS_RRTYPE_A)
-		a = &context->a;
-	else	a = &context->aaaa;
-
-	_getdns_log( &context->log, GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_DEBUG
-	           , "Waiting for second document timeout. Reconnecting...\n");
-
-	GETDNS_CLEAR_EVENT(a->loop, &a->event);
-	close(a->fd);
-	a->fd = -1;
-	if (a->state == TAS_READ_PS7_HDR) {
-		a->state = TAS_RETRY;
-		tas_connect(context, a);
-	} else
-		tas_next(context, a);
-}
-
 static void tas_read_cb(void *userarg);
 static void tas_write_cb(void *userarg);
 static void tas_doc_read(getdns_context *context, tas_connection *a)
@@ -683,6 +661,9 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 			GETDNS_FREE(context->mf, a->xml.data);
 		a->xml.data = a->tcp.read_buf;
 		a->xml.size = a->tcp.read_buf_len;
+		/* a->xml owns the document now */
+		a->tcp.read_buf = NULL;
+		a->tcp.read_buf_len = 0;
 	} else
 		assert(a->state == TAS_READ_PS7_DOC ||
 		       a->state == TAS_RETRY_PS7_DOC);
@@ -735,25 +716,11 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 		tas_fail(context, a);
 		return;
 	}
-	/* First try to read signatures immediately */
-	a->state += 1;
-	assert(a->state == TAS_READ_PS7_HDR);
-	a->tcp.read_buf = context->tas_hdr_spc;
-	a->tcp.read_buf_len = sizeof(context->tas_hdr_spc);
-
-	/* Check for surplus read bytes, for the P7S headers */
-	if (a->tcp.to_read > 0) {
-		a->tcp.read_pos = a->tcp.read_buf + a->tcp.to_read;
-		a->tcp.to_read  = sizeof(context->tas_hdr_spc)
-		                                  - a->tcp.to_read;
-	} else {
-		a->tcp.read_pos = a->tcp.read_buf;
-		a->tcp.to_read = sizeof(context->tas_hdr_spc);
-	}
-	GETDNS_SCHEDULE_EVENT(a->loop, a->fd, 2000,
-	    getdns_eventloop_event_init(&a->event, a->req->owner,
-	    tas_read_cb, NULL, tas_reconnect_cb));
-	return;
+	/* Fetch the signatures over a new connection */
+	close(a->fd);
+	a->fd = -1;
+	a->state = TAS_RETRY;
+	tas_connect(context, a);
 }
 
 static void tas_read_cb(void *userarg)
@@ -775,20 +742,28 @@ static void tas_read_cb(void *userarg)
 #else
 	n = read(a->fd, a->tcp.read_pos, a->tcp.to_read);
 #endif
-	if (n == 0) {
+	if (n == 0 && a->read_until_close &&
+	    (a->state == TAS_READ_XML_DOC || a->state == TAS_RETRY_PS7_DOC)) {
+		/* A document without Content-Length ends with the connection */
+		DEBUG_ANCHOR("Connection closed, end of document\n");
+		*a->tcp.read_pos = 0;
+		a->tcp.read_buf_len = a->tcp.read_pos - a->tcp.read_buf;
+		tas_doc_read(context, a);
+		return;
+
+	} else if (n == 0) {
 		DEBUG_ANCHOR("Connection closed\n");
+		_getdns_log( &context->log
+			   , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+			   , "Connection closed while receiving "
+			     "trust anchor\n");
 		GETDNS_CLEAR_EVENT(a->loop, &a->event);
 		close(a->fd);
 		a->fd = -1;
-		if (a->state == TAS_READ_PS7_HDR) {
-			a->state = TAS_RETRY;
-			tas_connect(context, a);
-		} else
-			tas_next(context, a);
+		tas_next(context, a);
 		return;
 
 	} else if (n > 0 && (  a->state == TAS_READ_XML_DOC
-	              || a->state == TAS_READ_PS7_DOC
 		      || a->state == TAS_RETRY_PS7_DOC)) {
 
 		assert(n <= (ssize_t)a->tcp.to_read);
@@ -798,19 +773,47 @@ static void tas_read_cb(void *userarg)
 		          , (void *)a->tcp.read_buf, (int)a->tcp.read_buf_len);
 		a->tcp.read_pos += n;
 		a->tcp.to_read -= n;
-		if (a->tcp.to_read == 0)
+		if (a->tcp.to_read > 0)
+			return;
+		if (!a->read_until_close) {
 			tas_doc_read(context, a);
-		return;
+			return;
+		}
+		_getdns_log( &context->log
+			   , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+			   , "Trust anchor document larger than %d bytes\n"
+			   , TAS_MAX_DOC_SIZE);
 
 	} else if (n > 0) {
-		ssize_t p = 0;
-		int doc_len = -1;
+		ssize_t p = 0, hdr_len = 0, surplus;
+		long doc_len = -1;
+		int has_doc_len = 0;
 		int len;
 		char *ln;
 		char *endptr;
+		uint8_t *doc;
 
 		n += a->tcp.read_pos - a->tcp.read_buf;
-		for (i = 0; i < (n - 1); i++) {
+		for (i = 0; i + 3 < n; i++) {
+			if (!memcmp(a->tcp.read_buf + i, "\r\n\r\n", 4)) {
+				hdr_len = i + 4;
+				break;
+			}
+		}
+		if (!hdr_len && n < (ssize_t)a->tcp.read_buf_len) {
+			/* Wait for the rest of the header */
+			a->tcp.read_pos = a->tcp.read_buf + n;
+			a->tcp.to_read = a->tcp.read_buf_len - n;
+			return;
+		}
+		if (!hdr_len) {
+			_getdns_log( &context->log
+				   , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+				   , "Trust anchor HTTP header larger than %d "
+				     "bytes\n", (int)a->tcp.read_buf_len);
+			goto error;
+		}
+		for (i = 0; i < (hdr_len - 1); i++) {
 			if (a->tcp.read_buf[i] != '\r' ||
 			    a->tcp.read_buf[i+1] != '\n')
 				continue;
@@ -822,8 +825,9 @@ static void tas_read_cb(void *userarg)
 			if (len >= 16 &&
 			    !strncasecmp(ln, "Content-Length: ", 16)) {
 				ln[len] = 0;
-				doc_len = (int)strtol(ln + 16, &endptr , 10);
-				if (endptr == ln || *endptr != 0)
+				has_doc_len = 1;
+				doc_len = strtol(ln + 16, &endptr , 10);
+				if (endptr == ln + 16 || *endptr != 0)
 					doc_len = -1;
 			}
 			if (i - p == 0) {
@@ -833,70 +837,57 @@ static void tas_read_cb(void *userarg)
 			p = i + 2;
 			i++;
 		}
-		if (doc_len > 0) {
-			uint8_t *doc = GETDNS_XMALLOC(
-			    context->mf, uint8_t, doc_len + 1);
-			doc[doc_len] = 0;
-
-			DEBUG_ANCHOR("i: %d, n: %d, doc_len: %d\n"
-			            , (int)i, (int)n, doc_len);
-			if (!doc)
-				_getdns_log( &context->log
-					   , GETDNS_LOG_SYS_ANCHOR
-					   , GETDNS_LOG_ERR
-					   , "Memory error while reading "
-					     "trust anchor\n");
-			else {
-				ssize_t surplus = n - i;
-
-				a->state += 1;
-				/* With pipelined read, the buffer might
-				 * contain the full document, plus a piece
-				 * of the headers of the next document!
-				 * Currently context->tas_hdr_spc is kept
-				 * small enough to anticipate this.
-				 */
-				if (surplus <= 0) {
-					a->tcp.read_pos = doc;
-					a->tcp.to_read = doc_len;
-				} else if (surplus > doc_len) {
-					(void) memcpy(
-					    doc, a->tcp.read_buf + i, doc_len);
-					a->tcp.read_pos = doc + doc_len;
-
-					/* Special value to indicate a begin
-					 * of the next reply is already
-					 * present.  Detectable by:
-					 * (read_pos == read_buf + read_buf_len)
-					 * && to_read > 0;
-					 */
-					a->tcp.to_read = surplus - doc_len;
-					(void) memmove(a->tcp.read_buf,
-					    a->tcp.read_buf + i + doc_len,
-					    surplus - doc_len);
-				} else {
-					assert(surplus <= doc_len);
-					(void) memcpy(
-					    doc, a->tcp.read_buf + i, surplus);
-					a->tcp.read_pos = doc + surplus;
-					a->tcp.to_read = doc_len - surplus;
-				}
-				a->tcp.read_buf = doc;
-				a->tcp.read_buf_len = doc_len;
-
-				if (a->tcp.read_pos == doc + doc_len)
-					tas_doc_read(context, a);
-				return;
-			}
+		if (has_doc_len &&
+		    (doc_len <= 0 || doc_len > TAS_MAX_DOC_SIZE)) {
+			_getdns_log( &context->log
+				   , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+				   , "Invalid or too large Content-Length of "
+				     "trust anchor (maximum %d bytes)\n"
+				   , TAS_MAX_DOC_SIZE);
+			goto error;
 		}
+		a->read_until_close = !has_doc_len;
+		if (!has_doc_len)
+			doc_len = TAS_MAX_DOC_SIZE;
+
+		DEBUG_ANCHOR("i: %d, n: %d, doc_len: %d\n"
+		            , (int)i, (int)n, (int)doc_len);
+		if (!(doc = GETDNS_XMALLOC(
+		    context->mf, uint8_t, doc_len + 1))) {
+			_getdns_log( &context->log
+				   , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+				   , "Memory error while reading "
+				     "trust anchor\n");
+			goto error;
+		}
+		doc[doc_len] = 0;
+
+		/* Part of the document may have been read with the header,
+		 * anything after the document is ignored.
+		 */
+		surplus = n - i;
+		if (surplus > doc_len)
+			surplus = doc_len;
+		(void) memcpy(doc, a->tcp.read_buf + i, surplus);
+
+		a->state += 1;
+		a->tcp.read_buf = doc;
+		a->tcp.read_buf_len = doc_len;
+		a->tcp.read_pos = doc + surplus;
+		a->tcp.to_read = doc_len - surplus;
+		if (a->tcp.to_read == 0)
+			tas_doc_read(context, a);
+		return;
+
 	} else if (_getdns_socketerror_wants_retry())
 		return;
 
-	_getdns_log( &context->log
-		   , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
-		   , "Error while receiving trust anchor: %s\n"
-		   , _getdns_errnostr());
-
+	else
+		_getdns_log( &context->log
+			   , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+			   , "Error while receiving trust anchor: %s\n"
+			   , _getdns_errnostr());
+error:
 	GETDNS_CLEAR_EVENT(a->loop, &a->event);
 	tas_next(context, a);
 }
@@ -1051,7 +1042,7 @@ static void tas_connect(getdns_context *context, tas_connection *a)
 	if (r == 0 || (r == -1 && (_getdns_socketerror() == _getdns_EINPROGRESS ||
 	                           _getdns_socketerror() == _getdns_EWOULDBLOCK))) {
 		char tas_hostname[256];
-		const char *path = "", *fmt;
+		const char *path = "";
 		getdns_return_t R;
 		char *write_buf;
 		size_t buf_sz, path_len, hostname_len;
@@ -1084,15 +1075,8 @@ static void tas_connect(getdns_context *context, tas_connection *a)
 				   , path);
 			goto error;
 		}
-		if (a->state == TAS_RETRY_GET_PS7) {
-			buf_sz = sizeof(tas_write_p7s_buf)
-			       + 1 * (hostname_len - 2) + 1 * (path_len - 2);
-			fmt = tas_write_p7s_buf;
-		} else {
-			buf_sz = sizeof(tas_write_xml_p7s_buf)
-			       + 2 * (hostname_len - 2) + 2 * (path_len - 2);
-			fmt = tas_write_xml_p7s_buf;
-		}
+		buf_sz = sizeof(tas_write_get_buf)
+		       + (hostname_len - 2) + (path_len - 2);
 		if (!(write_buf = GETDNS_XMALLOC(context->mf, char, buf_sz))) {
 			_getdns_log( &context->log
 				   , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
@@ -1100,25 +1084,15 @@ static void tas_connect(getdns_context *context, tas_connection *a)
 				     "sending to trust anchor host\n");
 			goto error;
 		}
+		(void) snprintf( write_buf, buf_sz, tas_write_get_buf
+		               , path, tas_hostname);
 		if (a->state == TAS_RETRY_GET_PS7) {
-			(void) snprintf( write_buf, buf_sz, fmt
-			               , path, tas_hostname);
+			/* The signatures have the extension p7s */
 			write_buf[4 + path_len - 3] =
 			write_buf[4 + path_len - 3] == 'X' ? 'P' : 'p';
 			write_buf[4 + path_len - 2] =              '7';
 			write_buf[4 + path_len - 1] = 
 			write_buf[4 + path_len - 1] == 'L' ? 'S' : 's';
-		} else {
-			(void) snprintf( write_buf, buf_sz, fmt
-			               , path, tas_hostname
-			               , path, tas_hostname);
-			write_buf[29 + hostname_len + 2 * path_len - 3] = 
-			write_buf[29 + hostname_len + 2 * path_len - 3] == 'X'
-			                                           ? 'P' : 'p';
-			write_buf[29 + hostname_len + 2 * path_len - 2] =  '7';
-			write_buf[29 + hostname_len + 2 * path_len - 1] =
-			write_buf[29 + hostname_len + 2 * path_len - 1] == 'L'
-			                                           ? 'S' : 's';
 		}
 		DEBUG_ANCHOR("Write buffer: \"%s\"\n", write_buf);
 		a->tcp.write_buf = (uint8_t *)(a->http = write_buf);
