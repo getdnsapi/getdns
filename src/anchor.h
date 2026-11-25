@@ -67,6 +67,8 @@ void _getdns_context_equip_with_anchor(getdns_context *context, uint64_t *now_ms
 void _getdns_start_fetching_ta(
     getdns_context *context, getdns_eventloop *loop, uint64_t *now_ms);
 
+void _getdns_cancel_fetching_ta(getdns_context *context);
+
 int _getdns_ta_lookup_timed_out(getdns_dns_req *dnsreq);
 
 #define MAX_KSKS        16

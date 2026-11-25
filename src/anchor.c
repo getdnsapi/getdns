@@ -1324,6 +1324,16 @@ void _getdns_start_fetching_ta(
 		context->trust_anchors_source = GETDNS_TASRC_FETCHING;
 }
 
+/* Abort a trust anchor fetch in progress: cancel the address lookups, close
+ * the connections and clear their events. The requests waiting for the trust
+ * anchors are not notified, so this is only for destroying the context.
+ */
+void _getdns_cancel_fetching_ta(getdns_context *context)
+{
+	tas_cleanup(context, &context->a);
+	tas_cleanup(context, &context->aaaa);
+}
+
 /* When dnsreq is an address lookup of the trust anchor fetch, fail it like
  * a lookup without addresses (which frees it) and return 1.
  */
