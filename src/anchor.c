@@ -724,7 +724,10 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 
 		else if (!(tas = _getdns_tas_validate(&context->mf, &a->xml, &p7s_bd,
 		    &verify_CA, verify_email, &now_ms, tas, &tas_len)))
-			; /* pass */
+			_getdns_log( &context->log
+				   , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+				   , "Fetched trust anchors failed to "
+				     "validate\n");
 
 		else {
 			context->trust_anchors = tas;
@@ -736,7 +739,10 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 			tas_success(context, a);
 			return;
 		}
-		tas_fail(context, a);
+		/* Like after the other errors, try the next address, or the
+		 * other address family.
+		 */
+		tas_next(context, a);
 		return;
 	}
 	/* First try to read signatures immediately */
