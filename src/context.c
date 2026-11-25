@@ -1656,6 +1656,13 @@ getdns_context_destroy(struct getdns_context *context)
 	if (context->sys_ctxt)
 		getdns_context_destroy(context->sys_ctxt);
 
+	/* Cancel the trust anchor fetch, which cancel_outstanding_requests()
+	 * would not: it leaves the address lookups of the fetch to their
+	 * owner (they are internal requests), and the connections of the
+	 * fetch are no requests at all.
+	 */
+	_getdns_cancel_fetching_ta(context);
+
 	/* cancel all outstanding requests */
 	cancel_outstanding_requests(context);
 
@@ -3353,6 +3360,11 @@ _getdns_context_request_timed_out(getdns_dns_req *dnsreq)
 		     dnsreq->user_pointer, dnsreq->trans_id);
 		dnsreq->context->processing = 0;
 	}
+	/* The trust anchor fetch handles (and frees) its own timed out
+	 * address lookups.
+	 */
+	if (_getdns_ta_lookup_timed_out(dnsreq))
+		return;
 	_getdns_context_cancel_request(dnsreq);
 }
 

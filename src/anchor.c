@@ -1324,6 +1324,39 @@ void _getdns_start_fetching_ta(
 		context->trust_anchors_source = GETDNS_TASRC_FETCHING;
 }
 
+/* Abort a trust anchor fetch in progress: cancel the address lookups, close
+ * the connections and clear their events. The requests waiting for the trust
+ * anchors are not notified, so this is only for destroying the context.
+ */
+void _getdns_cancel_fetching_ta(getdns_context *context)
+{
+	tas_cleanup(context, &context->a);
+	tas_cleanup(context, &context->aaaa);
+}
+
+/* When dnsreq is an address lookup of the trust anchor fetch, fail it like
+ * a lookup without addresses (which frees it) and return 1.
+ */
+int _getdns_ta_lookup_timed_out(getdns_dns_req *dnsreq)
+{
+	getdns_context *context = dnsreq->context;
+	tas_connection *a;
+
+	if (context->a.req && context->a.req->owner == dnsreq)
+		a = &context->a;
+	else if (context->aaaa.req && context->aaaa.req->owner == dnsreq)
+		a = &context->aaaa;
+	else
+		return 0;
+
+	_getdns_log( &context->log
+	           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_DEBUG
+	           , "%s lookup for trust anchor host timed out\n"
+	           , rt_str(a->req->request_type));
+	tas_fail(context, a);
+	return 1;
+}
+
 
 static int _uint16_cmp(const void *a, const void *b)
 { return (int)*(uint16_t *)a - (int)*(uint16_t *)b; }
